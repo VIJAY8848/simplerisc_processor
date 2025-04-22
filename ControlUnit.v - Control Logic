@@ -1,0 +1,126 @@
+module ControlUnit(
+    input [4:0] opcode,         // Opcode from instruction
+    output reg reg_write,       // Register write enable
+    output reg alu_src,         // ALU source select (0: reg, 1: imm)
+    output reg mem_to_reg,      // Memory to register select
+    output reg mem_read,        // Memory read enable
+    output reg mem_write,       // Memory write enable
+    output reg branch,          // Branch instruction
+    output reg jump,            // Jump instruction
+    output reg call,            // Call instruction
+    output reg ret,             // Return instruction
+    output reg halt,            // Halt signal
+    output reg [4:0] alu_control // ALU control signals
+);
+
+    always @(*) begin
+        // Default control signals
+        reg_write = 1'b0;
+        alu_src = 1'b0;
+        mem_to_reg = 1'b0;
+        mem_read = 1'b0;
+        mem_write = 1'b0;
+        branch = 1'b0;
+        jump = 1'b0;
+        call = 1'b0;
+        ret = 1'b0;
+        halt = 1'b0;
+        alu_control = 5'b0;
+
+        case(opcode)
+            5'b00000: begin // ADD
+                reg_write = 1'b1;
+                alu_control = 5'b00000;
+            end
+            5'b00001: begin // SUB
+                reg_write = 1'b1;
+                alu_control = 5'b00001;
+            end
+            5'b00010: begin // MUL
+                reg_write = 1'b1;
+                alu_control = 5'b00010;
+            end
+            5'b00011: begin // DIV
+                reg_write = 1'b1;
+                alu_control = 5'b00011;
+            end
+            5'b00100: begin // MOD
+                reg_write = 1'b1;
+                alu_control = 5'b00100;
+            end
+            5'b00101: begin // CMP
+                alu_control = 5'b00101;
+            end
+            5'b00110: begin // AND
+                reg_write = 1'b1;
+                alu_control = 5'b00110;
+            end
+            5'b00111: begin // OR
+                reg_write = 1'b1;
+                alu_control = 5'b00111;
+            end
+            5'b01000: begin // NOT
+                reg_write = 1'b1;
+                alu_control = 5'b01000;
+            end
+            5'b01001: begin // MOV
+                reg_write = 1'b1;
+                alu_src = 1'b1;
+                alu_control = 5'b01001;
+            end
+            5'b01010: begin // LSL
+                reg_write = 1'b1;
+                alu_control = 5'b01010;
+            end
+            5'b01011: begin // LSR
+                reg_write = 1'b1;
+                alu_control = 5'b01011;
+            end
+            5'b01100: begin // ASR
+                reg_write = 1'b1;
+                alu_control = 5'b01100;
+            end
+            5'b01101: begin // NOP
+                alu_control = 5'b01101;
+            end
+            5'b01110: begin // LD
+                reg_write = 1'b1;
+                mem_read = 1'b1;
+                mem_to_reg = 1'b1;
+                alu_src = 1'b1;
+                alu_control = 5'b00000; // Use ADD for address calculation
+            end
+            5'b01111: begin // ST
+                mem_write = 1'b1;
+                alu_src = 1'b1;
+                alu_control = 5'b00000; // Use ADD for address calculation
+            end
+            5'b10000: begin // BEQ
+                branch = 1'b1;
+                alu_control = 5'b00001; // Use SUB for comparison
+            end
+            5'b10001: begin // BGT
+                branch = 1'b1;
+                alu_control = 5'b00101; // Use CMP for comparison
+            end
+            5'b10010: begin // B (unconditional branch)
+                jump = 1'b1;
+            end
+            5'b10011: begin // CALL
+                call = 1'b1;
+                jump = 1'b1;
+            end
+            5'b10100: begin // RET
+                ret = 1'b1;
+            end
+            5'b11111: begin // HLT
+                halt = 1'b1;
+            end
+            default: begin
+                // Default to NOP
+                alu_control = 5'b01101;
+            end
+        endcase
+    end
+
+endmodule
