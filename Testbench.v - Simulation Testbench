@@ -1,0 +1,59 @@
+`timescale 1ns / 1ps
+
+module SimpleRISC_TB;
+    reg clk;
+    reg reset;
+    wire [31:0] alu_result;
+    wire halted;
+    
+    // Instantiate the processor
+    SimpleRISCProcessor processor(
+        .clk(clk),
+        .reset(reset),
+        .alu_result(alu_result),
+        .halted(halted)
+    );
+    
+    // Clock generation (100MHz - 10ns period)
+    initial begin
+        clk = 0;
+        forever #5 clk = ~clk;
+    end
+    
+    // Reset and test sequence
+    initial begin
+        // Initial reset
+        reset = 1;
+        #20 reset = 0;
+        
+        // Run until halted or for 500 cycles
+        #5000;
+        
+        // If not halted by then, force stop
+        if (!halted) begin
+            $display("Simulation stopped after timeout - processor not halted");
+        end else begin
+            $display("Processor halted normally");
+        end
+        
+        $finish;
+    end
+    
+    // Monitor processor state
+    initial begin
+        $monitor("Time=%0t, PC=%h, Instruction=%h, ALU Result=%h, Halted=%b", 
+                $time, processor.pc_current, processor.instruction, 
+                alu_result, halted);
+                
+        // Print register values at end of simulation
+        #5100;
+        $display("Register File State:");
+        for (integer i = 0; i < 32; i = i + 4) begin
+            $display("R%0d: %h  R%0d: %h  R%0d: %h  R%0d: %h", 
+                    i, processor.regs.registers[i],
+                    i+1, processor.regs.registers[i+1],
+                    i+2, processor.regs.registers[i+2],
+                    i+3, processor.regs.registers[i+3]);
+        end
+    end
+endmodule
