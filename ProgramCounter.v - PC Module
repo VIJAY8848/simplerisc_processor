@@ -1,0 +1,22 @@
+module ProgramCounter (
+    input clk,                 // Clock signal
+    input reset,               // Reset signal
+    input halt,                // Halt signal to stop execution
+    input [31:0] next_pc,      // Next PC value
+    output reg [31:0] pc_out   // Current PC value
+);
+
+    // Initialize PC
+    initial begin
+        pc_out = 32'b0;
+    end
+
+    always @(posedge clk or posedge reset) begin
+        if (reset)
+            pc_out <= 32'b0;
+        else if (!halt)
+            pc_out <= next_pc;
+        // When halt=1, PC doesn't advance, freezing execution
+    end
+
+endmodule
