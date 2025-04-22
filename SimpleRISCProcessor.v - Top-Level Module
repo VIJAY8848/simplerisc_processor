@@ -1,0 +1,162 @@
+`include "Parameters.v"
+
+module SimpleRISCProcessor(
+    input clk,                  // Clock signal
+    input reset,                // Reset signal
+    output [31:0] alu_result,   // Output for debug
+    output halted               // Processor halted status
+);
+
+    // --- Wires for connecting modules ---
+    
+    // PC wires
+    wire [31:0] pc_current, pc_next, pc_plus_4;
+    
+    // Instruction wires
+    wire [31:0] instruction;
+    wire [4:0] opcode, rs1, rs2, rd;
+    wire [15:0] immediate;
+    wire [31:0] sign_extended_imm;
+    
+    // Register file wires
+    wire [31:0] reg_data1, reg_data2;
+    
+    // ALU wires
+    wire [31:0] alu_in2;
+    wire [31:0] alu_out;
+    wire zero, greater;
+    
+    // Memory wires
+    wire [31:0] mem_read_data;
+    wire [31:0] write_back_data;
+    
+    // Branch/Jump wires
+    wire [31:0] branch_target, jump_target;
+    
+    // Control signals
+    wire reg_write, alu_src, mem_to_reg, mem_read, mem_write;
+    wire branch, jump, call, ret, halt;
+    wire [4:0] alu_control;
+    wire branch_taken;
+    
+    // Halt status register
+    reg processor_halted;
+    
+    // --- Instruction decode ---
+    InstructionDecoder decoder(
+        .instruction(instruction),
+        .opcode(opcode),
+        .rd(rd),
+        .rs1(rs1),
+        .rs2(rs2),
+        .immediate(immediate)
+    );
+    
+    // Sign-extend immediate
+    assign sign_extended_imm = {{16{immediate[15]}}, immediate};
+
+    // --- PC logic ---
+    ProgramCounter pc(
+        .clk(clk),
+        .reset(reset),
+        .halt(processor_halted),
+        .next_pc(pc_next),
+        .pc_out(pc_current)
+    );
+
+    // PC+4 calculation
+    assign pc_plus_4 = pc_current + 4;
+
+    // --- Instruction memory ---
+    InstructionMemory imem(
+        .pc(pc_current),
+        .instruction(instruction)
+    );
+
+    // --- Control unit ---
+    ControlUnit control(
+        .opcode(opcode),
+        .reg_write(reg_write),
+        .alu_src(alu_src),
+        .mem_to_reg(mem_to_reg),
+        .mem_read(mem_read),
+        .mem_write(mem_write),
+        .branch(branch),
+        .jump(jump),
+        .call(call),
+        .ret(ret),
+        .halt(halt),
+        .alu_control(alu_control)
+    );
+
+    // --- Register file ---
+    RegisterFile regs(
+        .clk(clk),
+        .reset(reset),
+        .reg_write(reg_write),
+        .call(call),
+        .read_reg1(rs1),
+        .read_reg2(rs2),
+        .write_reg(rd),
+        .write_data(write_back_data),
+        .pc_plus_4(pc_plus_4),
+        .read_data1(reg_data1),
+        .read_data2(reg_data2)
+    );
+
+    // --- ALU source selection ---
+    assign alu_in2 = alu_src ? sign_extended_imm : reg_data2;
+
+    // --- ALU ---
+    ALU alu(
+        .a(reg_data1),
+        .b(alu_in2),
+        .alu_control(alu_control),
+        .result(alu_out),
+        .zero(zero),
+        .greater(greater)
+    );
+
+    // --- Data memory ---
+    DataMemory dmem(
+        .clk(clk),
+        .mem_write(mem_write),
+        .mem_read(mem_read),
+        .address(alu_out),
+        .write_data(reg_data2),
+        .read_data(mem_read_data)
+    );
+
+    // --- Write-back data selection ---
+    assign write_back_data = mem_to_reg ? mem_read_data : alu_out;
+
+    // --- Branch target calculation ---
+    assign branch_target = pc_plus_4 + (sign_extended_imm << 2);
+    
+    // --- Jump target calculation ---
+    assign jump_target = {{pc_plus_4[31:28]}, instruction[25:0], 2'b00};
+
+    // --- Branch control logic ---
+    wire beq_taken = branch & zero & (opcode == 5'b10000);
+    wire bgt_taken = branch & greater & (opcode == 5'b10001);
+    assign branch_taken = beq_taken | bgt_taken;
+
+    // --- Next PC selection ---
+    assign pc_next = ret ? reg_data1 :           // Return instruction
+                    (jump | call) ? jump_target : // Jump or Call instruction
+                    branch_taken ? branch_target : // Branch taken
+                    pc_plus_4;                    // Sequential execution
+
+    // --- Halt logic ---
+    always @(posedge clk or posedge reset) begin
+        if (reset)
+            processor_halted <= 1'b0;
+        else if (halt)
+            processor_halted <= 1'b1;
+    end
+
+    // --- Debug outputs ---
+    assign alu_result = alu_out;
+    assign halted = processor_halted;
+
+endmodule
