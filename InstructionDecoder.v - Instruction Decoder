@@ -1,0 +1,17 @@
+module InstructionDecoder(
+    input [31:0] instruction,  // Full 32-bit instruction
+    output [4:0] opcode,       // 5-bit opcode
+    output [4:0] rd,           // Destination register
+    output [4:0] rs1,          // Source register 1
+    output [4:0] rs2,          // Source register 2
+    output [15:0] immediate    // Immediate value
+);
+
+    // Extract instruction fields
+    assign opcode = instruction[31:27];
+    assign rd = instruction[26:22];
+    assign rs1 = instruction[21:17];
+    assign rs2 = instruction[16:12];
+    assign immediate = instruction[15:0];
+
+endmodule
