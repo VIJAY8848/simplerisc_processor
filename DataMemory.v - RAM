@@ -1,0 +1,35 @@
+module DataMemory(
+    input clk,                    // Clock signal
+    input mem_write,              // Memory write enable
+    input mem_read,               // Memory read enable
+    input [31:0] address,         // Memory address
+    input [31:0] write_data,      // Data to write
+    output reg [31:0] read_data   // Data read
+);
+
+    // Define memory size constant if not defined
+    parameter MEM_SIZE = 256;
+
+    reg [31:0] memory [0:MEM_SIZE-1]; // Data memory
+    
+    integer i;
+    initial begin
+        for (i = 0; i < MEM_SIZE; i = i + 1)
+            memory[i] = 32'b0;
+    end
+
+    // Asynchronous read
+    always @(*) begin
+        if (mem_read)
+            read_data = memory[address[31:2]]; // Word-aligned access
+        else
+            read_data = 32'b0;
+    end
+
+    // Synchronous write
+    always @(posedge clk) begin
+        if (mem_write)
+            memory[address[31:2]] <= write_data;
+    end
+
+endmodule
